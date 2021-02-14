@@ -264,6 +264,8 @@ done
   - 存在しないバケットを指定するとキャッチされない例外が発生する
     - google.cloud pkg のExceptionにまかせているっぽい
   - AppEngineのCronサービスで例外が発生したときは、最大試行回数までリトライされる
+- これを実行するには、GoogleCloud の認証が必要。サービスアカウント作成＋キーペア作成＋JSONダウンロード。JSONファイルパスを `GOOGLE_APPLICATION_CREDENTIALS` 環境変数に設定
+- `export GOOGLE_APPLICATION_CREDENTIALS="path/to/credentials"`
 
 
 ## Flask webapp
@@ -295,6 +297,8 @@ done
   - あと、一応デプロイ先のプロジェクトも明示的に記述しておいた（`gcloud --project` オプション）
   - あと、一応デプロイ先のリージョンをバケットと同じにしておいた。（`gcloud --region` オプション）
 - 多分、deployしたときに生成される保護された関数名は保存しておいたほうが良い気がする
+- あと、パーソナルアクセストークンを `generate_token.sh` でつくっておけとのこと
+  - 公式リポジトリのREADMEより：`Generate a new Personal Access Token by running ./generate_token.sh -- Note the token printed. Modify main.py to have this token.`
 
 
 ## URLの保護
