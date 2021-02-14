@@ -268,19 +268,61 @@ done
 
 ## Flask webapp
 
+- このアプリの役割は、Cronで上記 `ingest` 処理を実行するための橋渡し役みたいなもの
+- URLは２つ
+- 「/」：ただのWelcomeページ←作る必要ある？
+- 「/ingest」：`ingest` 処理を呼び出す。終わったあとは、処理結果をHTMLとして（ほぼプレーンテキストだけど）表示するようにする。
 
+---
 
+- 本家のGitHubリポジトリを見る感じ、Flaskで作ってない。CloudFunctionsつかってるっぽいぞ。
+- なにせ、Flaskアプリケーションを実行してるスクリプトもないし、AppEngineにデプロイするのに必須なapp.ymlもない。そして極めつけは、`monthlyupdate/deploy_cf.sh` である。CloudSDKのCloudFunctionsデプロイコマンド（`gcloud functions deploy`）をつかってる
 
-## App Engine で実行
+## ~~App Engine で実行~~
 
+## CloudFunctions で実行（最新版に対応）
+
+- たぶん `deploy_cf.sh`
+- デプロイスクリプトを読み解いて、何をしているのか理解する
+  - `deploy_cf.sh`
+    - `--entry-point ingest_flights` より、`ingest_flights()`をデプロイしている
+    - Python3.7で実行
+    - HTTPトリガーで実行
+    - 認証なし実行を許可
+    - タイムアウトは480秒
+  - 実行したら「CloudBuildAPIを有効にしろ」と怒られた（`OperationError: code=7, message=Build failed: Cloud Build API has not been used in project ****** before or it is disabled. `）
+    - CloudBuildAPIを有効にしたら、サービスアカウントとキーペアを作れと言われた。なので作っておいた。（サービスアカウント名は、devops@xxxx）
+  - あと、一応デプロイ先のプロジェクトも明示的に記述しておいた（`gcloud --project` オプション）
+  - あと、一応デプロイ先のリージョンをバケットと同じにしておいた。（`gcloud --region` オプション）
+- 多分、deployしたときに生成される保護された関数名は保存しておいたほうが良い気がする
 
 
 ## URLの保護
 
+- たぶん `generate_token.sh`
+- `deploy_cf.sh` にもあるけど、opensslコマンドでランダム生成されたURLを生成している
+- これにより、デプロイ先のURLを生成しているのだろう
+- 一応コマンドの使い方を調べた
+  - 参考：https://qiita.com/hana_shin/items/6d9de0847a06d8ee95cc
+  - `openssl rand -base64 48 | tr -d /=+ | cut -c -32` を理解できればいい
+    - `openssl rand -base64 12` で12文字のbase64エンコーディングランダム文字列が作れる
+    - `tr` これはこの前出てきた。text replace. 文字列置換だ。
+    - `cut -c -32` は末尾32文字の削除
+
+
+## デプロイしたCloudFunctionsの実行方法
+
+- たぶん `call_cf.sh`
+- コマンドライン引数からデプロイ先のURL生成して、curlでPOSTしてるだけ、かな？
+- コマンドライン引数には、リージョン、トークンなどを設定
 
 
 ## Cronタスクのスケジューリング
 
-
-
+- たぶん `setup_cron.sh`
+- CloudFunctionsのデプロイ先URLとバケットURLをコマンドライン引数から生成
+- `gcloud beta scheduler jobs create http monthlyupdate` でジョブをスケジューリング
+  - 参考：https://cloud.google.com/sdk/gcloud/reference/beta/scheduler/jobs
+  - Cloud Scheduler jobs の管理コマンドらしい
+  - `http monthlyupdate` の部分がどういう意味7日、リファレンスを読んでもわからない。
 
