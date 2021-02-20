@@ -81,4 +81,31 @@
 
 （本編：3.4~3.9までをまとめて記載）
 
+- Cloud SQL で MySQL インスタンスを立ててやる理由
+  - 今回扱うのが表形式データであるため、選択肢の一つとしてRDB
+  - 小規模なデータセットに対して、不定形のクエリを実行する場合にRDBは適している
+  - MySQL：幅広いユースケースをカバー、高性能、様々なライブラリが用意されていて、接続が用意
+  - Cloud SQLがそもそもMySQLのマネージド・サービス（2021/02時点では、PostgreSQL/SQL Server もサポートされている）
 
+Cloud SDK の Cloud SQL 系コマンド `gcloud sql` のリファレンスは[こちら](https://cloud.google.com/sdk/gcloud/reference/sql)
+
+### Cloud SQL でインスタンスを立ち上げる
+
+- `create_instance.sh` を参照
+- `--activation-policy ALWAYS` に関する情報は[こちら](https://cloud.google.com/sql/docs/mysql/start-stop-restart-instance#gcloud)
+
+![img](img/create_instance.png)
+
+<font color=grey>Note: bash上でCloudリソースに命令を出す時は、以下のような感じでgcloudコマンドでアクセストークンをとればいい。</font>
+
+```bash
+ACCESS_TOKEN="$(gcloud auth application-default print-access-token)"
+curl --header "Authorization: Bearer ${ACCESS_TOKEN}" \
+     --header 'Content-Type: aplication/json' \
+     --data ...
+```
+って書いてたけど、以下のエラーが出るので、通常通りアクセスキーのJSONファイルのパスを環境変数 `GOOGLE_APPLICATION_CREDENTIALS` に設定して実行するべきか。
+
+```bash
+ERROR: (gcloud.auth.application-default.print-access-token) Could not automatically determine credentials. Please set GOOGLE_APPLICATION_CREDENTIALS or explicitly create credentials and re-run the application. For more information, please see https://cloud.google.com/docs/authentication/getting-started
+```
