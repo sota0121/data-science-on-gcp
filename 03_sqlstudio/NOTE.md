@@ -109,3 +109,174 @@ curl --header "Authorization: Bearer ${ACCESS_TOKEN}" \
 ```bash
 ERROR: (gcloud.auth.application-default.print-access-token) Could not automatically determine credentials. Please set GOOGLE_APPLICATION_CREDENTIALS or explicitly create credentials and re-run the application. For more information, please see https://cloud.google.com/docs/authentication/getting-started
 ```
+
+### MySQLへのアクセス制御
+
+- MySQLのデータベースに接続して、各種コマンド（`mysql`）を実行するには、接続元のマシンを認可する必要がある
+- MySQLは認可するネットワークを管理しているようで、そのリストを変更する（ホワイトリストに新たに自身のIPを追加する）
+- 自身のIPアドレスを返してくれる `https://ipecho.net` を利用する
+- `gcloud sql instances patch flights ...`
+  - [references](https://cloud.google.com/sdk/gcloud/reference/sql/instances/patch)
+  - このコマンドは、CloudSQLインスタンスの設定をUpdateするもの
+- `wget -q0 - https://ipecho.net/plain`
+  - このコマンドにより自身のIPアドレスを返す
+
+```bash
+gcloud sql instances patch flights \
+    --authorized-networks $(wget -q0 - http://ipecho.net/plain)/32
+```
+
+![img](img/authorize_network.png)
+
+
+> ### ■ MySQL におけるインデックス
+> <br>
+> 
+> - `create_table.sql` 末尾で追加している `INDEX(xxx)` は処理の高速化のためのもの
+> - ざっくりいうと、検索処理を高速化するための手段である
+> - 指定したカラム（複数可）に対してINDEXの命令を記述するとその列のインデックスが作られる
+> - インデックスとは、各レコードの位置情報をツリー構造などで保持し、任意レコードの探索計算時間を削減する取り組み、みたいなものと理解した
+> - インデックスを作ると、メモリを食う。追加処理が時間かかる。といったデメリットがある模様。
+> - インデックスをはるべきカラムは、「よくWhere句の条件に使われる」「大量にレコードがあるうちの少しだけ抽出したい場合が多い」などの特性に当てはまるものが望ましい
+
+
+### MySQLにテーブルを作る
+
+MySQL付属のmysqlコマンドをつかって、`.sql`ファイルを取り込むことで、SQLクエリを実行できる。ただし、その際にMySQLインスタンスのIPアドレスを指定しなければならない。
+
+<br>
+
+※結論：`create_table.sh`を実行すればいける
+
+<br>
+
+> ### `mysql` 使い方
+> <br>
+> 
+> - login: mysql ... (in terminal)
+> - in mysql cli
+>   - use {table_name};
+>   - describe {instance}
+>   - SQL
+> - ★注意
+>   - 行末尾は `;` をつけよう
+>   - 行末尾に `;` がなければ、ずっと入力が終わらない `->` ってずっと出てくる。そんなときは、`;` を入力すれば終わる。
+>   - `mysql` CLI を抜けるには `quit` と入力する
+
+<br>
+
+**CloudSQLインスタンスのアドレスを取得**
+
+```bash
+gcloud sql instances describe \
+    flights --format="value(ipAddresses.ipAddress)"
+```
+
+**mysqlコマンド: sqlファイルを読み込んでクエリ実行**
+```bash
+MYSQLIP=$(gcloud sql instances describe \
+    flights --format="value(ipAddresses.ipAddress)")
+mysql --host=$MYSQLIP --user=root \
+    --password --verbose < create_table.sql
+
+```
+
+とりあえず、ローカルのmysqlコマンドでCloudSQLのインスタンス上のテーブルを操作する。以下のコマンドでログイン（パスワードは未設定）
+
+```bash
+mysql --host=$MYSQLIP --user=root
+
+# -----
+
+mysql> use bts;
+Database changed
+mysql> describe flights;
++-----------------------+-------------+------+-----+---------+-------+
+| Field                 | Type        | Null | Key | Default | Extra |
++-----------------------+-------------+------+-----+---------+-------+
+| FL_DATE               | date        | YES  | MUL | NULL    |       |
+| UNIQUE_CARRIER        | varchar(16) | YES  |     | NULL    |       |
+| AIRLINE_ID            | varchar(16) | YES  |     | NULL    |       |
+| CARRIER               | varchar(16) | YES  |     | NULL    |       |
+| FL_NUM                | int(11)     | YES  |     | NULL    |       |
+| ORIGIN_AIRPORT_ID     | varchar(16) | YES  | MUL | NULL    |       |
+| ORIGIN_SEQ_ID         | varchar(16) | YES  |     | NULL    |       |
+| ORIGIN_CITY_MARKET_ID | varchar(16) | YES  |     | NULL    |       |
+| ORIGIN                | varchar(16) | YES  |     | NULL    |       |
+| DEST_AIRPORT_ID       | varchar(16) | YES  |     | NULL    |       |
+| DEST_AIRPORT_SEQ_ID   | varchar(16) | YES  |     | NULL    |       |
+| DEST_CITY_MARKET_ID   | varchar(16) | YES  |     | NULL    |       |
+| DEST                  | varchar(16) | YES  |     | NULL    |       |
+| CRS_DEP_TIME          | int(11)     | YES  |     | NULL    |       |
+| DEP_TIME              | int(11)     | YES  | MUL | NULL    |       |
+| DEP_DELAY             | float       | YES  | MUL | NULL    |       |
+| TAXI_OUT              | float       | YES  |     | NULL    |       |
+| WHEELS_OFF            | int(11)     | YES  |     | NULL    |       |
+| WHEELS_ON             | int(11)     | YES  |     | NULL    |       |
+| TAXI_IN               | float       | YES  |     | NULL    |       |
+| CRS_ARR_TIME          | int(11)     | YES  |     | NULL    |       |
+| ARR_TIME              | int(11)     | YES  |     | NULL    |       |
+| ARR_DELAY             | float       | YES  | MUL | NULL    |       |
+| CANCELLED             | float       | YES  |     | NULL    |       |
+| CANCELLATION_CODE     | varchar(16) | YES  |     | NULL    |       |
+| DIVERTED              | float       | YES  |     | NULL    |       |
+| DISTANCE              | float       | YES  |     | NULL    |       |
++-----------------------+-------------+------+-----+---------+-------+
+27 rows in set (0.03 sec)
+
+mysql> select distinct(FL_DATE) from flights;
+Empty set (0.03 sec)
+
+```
+
+### ユーザーパスワードを変更しておく
+
+```bash
+gcloud sql users set-password [USER_NAME] \
+   --host=[HOST] --instance=[INSTANCE_NAME] --prompt-for-password
+
+# ---
+
+Instance Password: 
+Updating Cloud SQL user...done.  
+```
+
+で変更したつもりが、どうも上手く行かない。ちなみに、この後いろんな場面で `Enter password:` と出たときに、（設定変更したつもりの）パスワードを入力しても、アクセス拒否エラーになるのに、何も入力せずにEnter押すと、行ける。
+
+つまり、「パスワード変更できてない」「パスワード変更はできているけど、期待したパスワードになっていない」が考えられる。おそらく後者かと。原因追求は一旦やめて、先に進む。
+
+
+### テーブルへのデータインポート
+
+以下の作業をする
+
+- ローカルの`mysqlimport`コマンドでMySQLにCSVを取り込む
+- CloudStorage上のファイルをローカルにコピーする
+  - `mysqlimport` はローカルのファイルしか扱えないから
+- CSVファイルのbasenameを`flights`に変更する
+  - `mysqlimport`はCSVファイルの名前から、インポート先のテーブルを推測するから
+
+
+※とりあえず：`populate_table.sh`を実行すればいける
+
+```bash
+chmod +x ./populate_table.sh
+./populate_table.sh {BUCKET_NAME}
+```
+
+結果
+![img](img/populate_table.png)
+
+
+たしかにデータが入っているか確認する
+
+```bash
+mysql --host=$MYSQLIP --user=root --password
+
+mysql> use bts;
+mysql> describe flights;
+
+# -- table description is shown --
+
+mysql> select distinct(FL_DATE) from flights;
+```
