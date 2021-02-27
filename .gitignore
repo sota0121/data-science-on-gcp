@@ -131,3 +131,4 @@ dmypy.json
 *.heic
 *.DS_Store
 data/
+*plain
