@@ -323,4 +323,42 @@ mysql> select distinct(FL_DATE) from flights;
 ここでは、一つのパラメータを手作業で最適化していった。考え方自体は機械学習と本質的に違いはない。これよりもっとパラメータ増えて、システマティックに最適化するようなのが、機械学習らしい機械学習って感じ。
 
 
+---
+
+<br>
+
+## ダッシュボードを作る
+
+基本的な操作方法は心得ているので、省略。最終的に作りたいもののイメージは以下。
+
+![img](img/IMG_4789.jpg)
+
+### 手順メモ
+
+- データソース作成
+  - Cloud SQL の flights インスタンスの bts テーブルに接続
+  - ![img](img/dataportal_00.png)
+  - ![img](img/dataportal_01.png)
+- レポート作成
+  - データソースからレポートを作成する
+- フィールド追加
+  - `islate`
+    - `ARR_DERAY < 15 or ARR_DERAY >= 15`
+- Cloud SQL 側でパラメータの閾値が10, 15, 20の場合のVIEWを作る
+  - （★処理は、`create_views.sh`と`create_views.sql`で実行する）
+  - `create view delayed_10 as select * from flights where dep_delay > 10;`
+  - `create view delayed_10 as select * from flights where dep_delay > 15;`
+  - `create view delayed_10 as select * from flights where dep_delay > 20;`
+- 上記VIEWをデータソースに追加する
+- あとはなんやかんやする
+
+
+### 成果物
+
+以下のリンク
+
+<font size=4>[ds-on-gcp_bts_basic-report
+ on DataPortal](https://datastudio.google.com/reporting/e7ef2038-27f1-489a-9585-aa207e1a8bc3)</font>
+
+ ![img](img/dataportal_02.png)
 
